@@ -40,3 +40,5 @@ benchmarks.json
 /.flatpak-builder
 /repo
 /nemo_msdd_configs
+
+token-optimizer/
