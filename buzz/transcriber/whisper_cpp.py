@@ -9,6 +9,7 @@ from typing import List, Optional
 from buzz.assets import APP_BASE_DIR
 from buzz.transcriber.transcriber import Segment, Task, FileTranscriptionTask
 from buzz.transcriber.file_transcriber import app_env
+from buzz.execution_mode import is_force_cpu_enabled
 
 
 IS_VULKAN_SUPPORTED = False
@@ -188,8 +189,7 @@ class WhisperCpp:
         if task.transcription_options.task == Task.TRANSLATE:
             cmd.extend(["--translate"])
 
-        force_cpu = os.getenv("BUZZ_FORCE_CPU", "false")
-        if force_cpu != "false" or (not IS_VULKAN_SUPPORTED and platform.system() != "Darwin"):
+        if is_force_cpu_enabled() or (not IS_VULKAN_SUPPORTED and platform.system() != "Darwin"):
             cmd.extend(["--no-gpu"])
 
         print(f"Running Whisper CLI: {' '.join(cmd)}")
@@ -461,8 +461,7 @@ class WhisperCpp:
         ]
 
         # Force CPU if specified (mirrors transcribe()).
-        force_cpu = os.getenv("BUZZ_FORCE_CPU", "false")
-        if force_cpu != "false" or (not IS_VULKAN_SUPPORTED and platform.system() != "Darwin"):
+        if is_force_cpu_enabled() or (not IS_VULKAN_SUPPORTED and platform.system() != "Darwin"):
             cmd.extend(["--no-gpu"])
 
         print(f"Running Whisper CLI language detection: {' '.join(cmd)}")

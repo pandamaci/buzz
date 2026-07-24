@@ -40,13 +40,7 @@ dependencies = [
     "torch==2.8.0; sys_platform == 'darwin' and platform_machine == 'arm64'",
     "torchaudio==2.8.0; sys_platform == 'darwin' and platform_machine == 'arm64'",
     "ctranslate2>=4.6.2,<5; sys_platform == 'darwin' and platform_machine == 'arm64'",
-    # For Linux/Windows - use CUDA versions from pytorch index
-    "torch==2.8.0; sys_platform != 'darwin'",
-    "torchaudio==2.8.0; sys_platform != 'darwin'",
     "ctranslate2>=4.6.2,<5; sys_platform != 'darwin'",
-    # faster whisper need cudnn 9
-    "nvidia-cudnn-cu12>=9,<10; sys_platform != 'darwin'",
-    # CUDA runtime libraries are provided by torch dependencies, no need to specify explicitly
     "darkdetect>=0.8.0,<0.9",
     "dora-search>=0.1.12,<0.2",
     "diffq>=0.2.4,<0.3",
@@ -82,8 +76,6 @@ dependencies = [
     "certifi>=2025.11.12",
     "truststore>=0.10.0",
     "torchcodec>=0.9.0; sys_platform != 'darwin' or platform_machine != 'x86_64'",
-    "torch>=2.2.2",
-    "torchaudio>=2.2.2",
     "datasets>=4.4.1",
 ]
 repository = "https://github.com/chidiwilliams/buzz"
@@ -91,6 +83,16 @@ documentation = "https://chidiwilliams.github.io/buzz/docs"
 
 [project.scripts]
 buzz = "buzz.buzz:main"
+
+[project.optional-dependencies]
+cpu = [
+    "torch==2.8.0; sys_platform == 'linux'",
+    "torchaudio==2.8.0; sys_platform == 'linux'",
+]
+cuda = [
+    "torch==2.8.0; sys_platform == 'linux' and platform_machine == 'x86_64'",
+    "torchaudio==2.8.0; sys_platform == 'linux' and platform_machine == 'x86_64'",
+]
 
 [dependency-groups]
 dev = [
@@ -121,6 +123,13 @@ default-groups = [
     "build",
 ]
 
+conflicts = [
+    [
+        { extra = "cpu" },
+        { extra = "cuda" },
+    ],
+]
+
 # Should be removed after nemo-toolkit update to 2.6.0
 # Forcing a CUDA 12.9 compatable bitsandbytes version
 # ARM Macs use 0.49.0, others use 0.47.0 (Intel Macs skip entirely via marker)
@@ -132,20 +141,29 @@ override-dependencies = [
 [tool.uv.sources]
 torch = [
     { index = "PyPI", marker = "sys_platform == 'darwin'" },
-    { index = "pytorch-cu129", marker = "sys_platform != 'darwin'" },
+    { index = "pytorch-cpu", extra = "cpu" },
+    { index = "pytorch-cu129", extra = "cuda" },
 ]
 torchaudio = [
     { index = "PyPI", marker = "sys_platform == 'darwin'" },
-    { index = "pytorch-cu129", marker = "sys_platform != 'darwin'" },
+    { index = "pytorch-cpu", extra = "cpu" },
+    { index = "pytorch-cu129", extra = "cuda" },
 ]
 
 [[tool.uv.index]]
 name = "nvidia"
 url = "https://pypi.ngc.nvidia.com/"
+explicit = true
 
 [[tool.uv.index]]
 name = "pytorch-cu129"
 url = "https://download.pytorch.org/whl/cu129"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
 
 [[tool.uv.index]]
 name = "PyPI"

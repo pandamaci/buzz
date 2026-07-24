@@ -51,7 +51,7 @@ class Application(QApplication):
         force_cpu_enabled = self.settings.value(
             key=Settings.Key.FORCE_CPU, default_value=False
         )
-        if force_cpu_enabled:
+        if force_cpu_enabled and os.getenv("BUZZ_EXECUTION_MODE") != "cuda":
             os.environ["BUZZ_FORCE_CPU"] = "true"
 
         # Set BUZZ_REDUCE_GPU_MEMORY environment variable if Reduce GPU RAM setting is enabled

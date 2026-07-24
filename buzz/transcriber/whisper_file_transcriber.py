@@ -27,6 +27,7 @@ from buzz.transformers_whisper import TransformersTranscriber
 from buzz.transcriber.file_transcriber import FileTranscriber
 from buzz.transcriber.transcriber import FileTranscriptionTask, Segment, Task, DEFAULT_WHISPER_TEMPERATURE
 from buzz.transcriber.whisper_cpp import WhisperCpp
+from buzz.execution_mode import is_force_cpu_enabled
 
 import av
 import faster_whisper
@@ -265,8 +266,7 @@ class WhisperFileTranscriber(FileTranscriber):
         model_root_dir = user_cache_dir("Buzz")
         model_root_dir = os.path.join(model_root_dir, "models")
         model_root_dir = os.getenv("BUZZ_MODEL_ROOT", model_root_dir)
-        force_cpu = os.getenv("BUZZ_FORCE_CPU", "false")
-        if force_cpu != "false":
+        if is_force_cpu_enabled():
             os.environ["CUDA_VISIBLE_DEVICES"] = ""
 
         device = "auto"
@@ -278,7 +278,7 @@ class WhisperFileTranscriber(FileTranscriber):
             logging.debug("CUDA is not available, using CPU")
             device = "cpu"
 
-        if force_cpu != "false":
+        if is_force_cpu_enabled():
             device = "cpu"
 
         # Check if user wants reduced GPU memory usage (int8 quantization)
@@ -337,11 +337,10 @@ class WhisperFileTranscriber(FileTranscriber):
 
     @classmethod
     def transcribe_openai_whisper(cls, task: FileTranscriptionTask) -> List[Segment]:
-        force_cpu = os.getenv("BUZZ_FORCE_CPU", "false")
-        if force_cpu != "false":
+        if is_force_cpu_enabled():
             os.environ["CUDA_VISIBLE_DEVICES"] = ""
 
-        use_cuda = torch.cuda.is_available() and force_cpu == "false"
+        use_cuda = torch.cuda.is_available() and not is_force_cpu_enabled()
 
         device = "cuda" if use_cuda else "cpu"
 

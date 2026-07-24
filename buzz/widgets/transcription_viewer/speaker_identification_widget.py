@@ -20,6 +20,7 @@ except ImportError:
 
 import faster_whisper
 import torch
+from buzz.execution_mode import is_force_cpu_enabled
 from PyQt6.QtMultimedia import QMediaPlayer, QAudioOutput
 from PyQt6.QtCore import Qt, QThread, QObject, pyqtSignal, QUrl, QTimer
 from PyQt6.QtGui import QFont
@@ -198,8 +199,7 @@ class IdentificationWorker(QObject):
         return language, full_transcript, audio_waveform
 
     def _setup_device(self):
-        force_cpu = os.getenv("BUZZ_FORCE_CPU", "false")
-        use_cuda = torch.cuda.is_available() and force_cpu == "false"
+        use_cuda = torch.cuda.is_available() and not is_force_cpu_enabled()
         device = "cuda" if use_cuda else "cpu"
         torch_dtype = torch.float16 if use_cuda else torch.float32
 

@@ -29,6 +29,7 @@ from buzz.settings.settings import Settings
 from buzz.transcriber.transcriber import TranscriptionOptions, Task, DEFAULT_WHISPER_TEMPERATURE
 from buzz.transformers_whisper import TransformersTranscriber
 from buzz.settings.recording_transcriber_mode import RecordingTranscriberMode
+from buzz.execution_mode import is_force_cpu_enabled
 
 import whisper
 import faster_whisper
@@ -164,8 +165,8 @@ class RecordingTranscriber(QObject):
     def _load_model(self):
         model_path = self.model_path
 
-        force_cpu = os.getenv("BUZZ_FORCE_CPU", "false")
-        use_cuda = torch.cuda.is_available() and force_cpu == "false"
+        force_cpu = is_force_cpu_enabled()
+        use_cuda = torch.cuda.is_available() and not force_cpu
 
         if torch.cuda.is_available():
             logging.debug(f"CUDA version detected: {torch.version.cuda}")
@@ -199,7 +200,7 @@ class RecordingTranscriber(QObject):
                 logging.debug("CUDA is not available, using CPU")
                 device = "cpu"
 
-            if force_cpu != "false":
+            if force_cpu:
                 device = "cpu"
 
             # Check if user wants reduced GPU memory usage (int8 quantization)
@@ -488,6 +489,9 @@ class RecordingTranscriber(QObject):
             cmd.extend(["--language", self.transcription_options.language])
         else:
             cmd.extend(["--language", "auto"])
+
+        if is_force_cpu_enabled():
+            cmd.append("--no-gpu")
 
         logging.debug(f"Starting Whisper server with command: {' '.join(cmd)}")
 

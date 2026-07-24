@@ -16,6 +16,7 @@ from transformers.pipelines.audio_utils import ffmpeg_read
 from transformers.pipelines.automatic_speech_recognition import is_torchaudio_available
 
 from buzz.model_loader import is_mms_model, map_language_to_mms
+from buzz.execution_mode import is_force_cpu_enabled
 
 
 def is_intel_mac() -> bool:
@@ -244,8 +245,7 @@ class TransformersTranscriber:
         initial_prompt: str = "",
     ):
         """Transcribe using Whisper model."""
-        force_cpu = os.getenv("BUZZ_FORCE_CPU", "false")
-        use_cuda = torch.cuda.is_available() and force_cpu == "false"
+        use_cuda = torch.cuda.is_available() and not is_force_cpu_enabled()
         device = "cuda" if use_cuda else "cpu"
         torch_dtype = torch.float16 if use_cuda else torch.float32
 
@@ -463,8 +463,7 @@ class TransformersTranscriber:
         from transformers import Wav2Vec2ForCTC, AutoProcessor as MMSAutoProcessor
         from transformers.pipelines.audio_utils import ffmpeg_read as mms_ffmpeg_read
 
-        force_cpu = os.getenv("BUZZ_FORCE_CPU", "false")
-        use_cuda = torch.cuda.is_available() and force_cpu == "false"
+        use_cuda = torch.cuda.is_available() and not is_force_cpu_enabled()
         device = "cuda" if use_cuda else "cpu"
 
         # Map language code to ISO 639-3 for MMS
@@ -546,4 +545,3 @@ class TransformersTranscriber:
 
 # Alias for backward compatibility
 TransformersWhisper = TransformersTranscriber
-

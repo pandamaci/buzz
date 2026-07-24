@@ -75,12 +75,13 @@ ifeq ($(OS), Windows_NT)
 endif
 
 ifeq ($(shell uname -s), Linux)
-	# Build Whisper with Vulkan support
+	# Build Whisper for CPU-only use. Vulkan is optional and this local setup
+	# targets an Intel integrated GPU without the Vulkan SDK installed.
 	# GGML_NATIVE=OFF ensures we don't use -march=native (which would target the build machine's CPU)
 	# This enables portable SSE4.2/AVX/AVX2 optimizations that work on most x86_64 CPUs
 	rm -rf whisper.cpp/build || true
 	-mkdir -p buzz/whisper_cpp
-	cmake -S whisper.cpp -B whisper.cpp/build/ -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON -DCMAKE_INSTALL_RPATH='$$ORIGIN' -DCMAKE_BUILD_WITH_INSTALL_RPATH=ON -DGGML_VULKAN=1 -DGGML_NATIVE=OFF
+	cmake -S whisper.cpp -B whisper.cpp/build/ -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON -DCMAKE_INSTALL_RPATH='$$ORIGIN' -DCMAKE_BUILD_WITH_INSTALL_RPATH=ON -DGGML_VULKAN=0 -DGGML_NATIVE=OFF
 	cmake --build whisper.cpp/build -j --config Release --verbose
 	cp whisper.cpp/build/bin/whisper-cli buzz/whisper_cpp/ || true
 	cp whisper.cpp/build/bin/whisper-server buzz/whisper_cpp/ || true
@@ -88,7 +89,6 @@ ifeq ($(shell uname -s), Linux)
 	cp -P whisper.cpp/build/ggml/src/libggml.so* buzz/whisper_cpp/ || true
 	cp -P whisper.cpp/build/ggml/src/libggml-base.so* buzz/whisper_cpp/ || true
 	cp -P whisper.cpp/build/ggml/src/libggml-cpu.so* buzz/whisper_cpp/ || true
-	cp -P whisper.cpp/build/ggml/src/ggml-vulkan/libggml-vulkan.so* buzz/whisper_cpp/ || true
 	test -f buzz/whisper_cpp/ggml-silero-v6.2.0.bin || curl -L -o buzz/whisper_cpp/ggml-silero-v6.2.0.bin https://huggingface.co/ggml-org/whisper-vad/resolve/main/ggml-silero-v6.2.0.bin
 endif
 

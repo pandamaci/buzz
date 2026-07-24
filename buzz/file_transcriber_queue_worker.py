@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Optional, Tuple, List, Set
 from uuid import UUID
 from dataclasses import dataclass
+from buzz.execution_mode import is_force_cpu_enabled
 
 # Fix SSL certificate verification for bundled applications (macOS, Windows)
 # This must be done before importing demucs which uses torch.hub with urllib
@@ -180,7 +181,7 @@ class FileTranscriberQueueWorker(QObject):
     def _setup_speech_extraction(self) -> str:
         logging.debug("Will extract speech")
 
-        force_cpu = os.getenv("BUZZ_FORCE_CPU", "false").lower() == "true"
+        force_cpu = is_force_cpu_enabled()
         if force_cpu:
             device = "cpu"
         else:
