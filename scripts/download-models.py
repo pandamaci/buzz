@@ -38,10 +38,21 @@ MODEL_TYPE_MAP = {
 }
 
 # Standard sizes to download (excludes CUSTOM and LUMII)
-STANDARD_SIZES = [s for s in WhisperModelSize if s not in (WhisperModelSize.CUSTOM, WhisperModelSize.LUMII)]
+STANDARD_SIZES = [
+    s for s in WhisperModelSize
+    if s not in (WhisperModelSize.CUSTOM, WhisperModelSize.LUMII)
+    and not s.value.startswith("hungarian-")
+]
 
 
 def download(model_types, model_sizes):
+    hungarian = set(model_sizes) & {
+        size for size in WhisperModelSize if size.value.startswith("hungarian-")
+    }
+    if hungarian:
+        raise ValueError(
+            "Hungarian local-only models are not downloaded by this script; run start.sh"
+        )
     total = len(model_types) * len(model_sizes)
     done = 0
     failed = []
@@ -80,7 +91,7 @@ def main():
     )
     parser.add_argument(
         "--model-size",
-        choices=[s.value for s in STANDARD_SIZES],
+        choices=[s.value for s in STANDARD_SIZES if not s.value.startswith("hungarian-")],
         nargs="+",
         help="Model sizes to download (default: all standard sizes)",
     )

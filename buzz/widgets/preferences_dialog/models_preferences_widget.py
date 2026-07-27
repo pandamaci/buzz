@@ -19,6 +19,7 @@ from buzz.locale import _
 from buzz.model_loader import (
     ModelType,
     WhisperModelSize,
+    HUNGARIAN_WHISPER_CPP_MODEL_SIZES,
     TranscriptionModel,
     ModelDownloader,
 )
@@ -155,8 +156,11 @@ class ModelsPreferencesWidget(QWidget):
     def reset(self):
         # reset buttons
         path = self.model.get_local_model_path()
-        self.download_button.setVisible(path is None)
-        self.download_button.setEnabled(self.model.whisper_model_size != WhisperModelSize.CUSTOM)
+        local_only = self.model.whisper_model_size in HUNGARIAN_WHISPER_CPP_MODEL_SIZES
+        self.download_button.setVisible(path is None and not local_only)
+        self.download_button.setEnabled(
+            self.model.whisper_model_size != WhisperModelSize.CUSTOM and not local_only
+        )
         self.delete_button.setVisible(self.model.is_deletable())
         self.show_file_location_button.setVisible(self.model.is_deletable())
 
@@ -205,6 +209,18 @@ class ModelsPreferencesWidget(QWidget):
             return
 
         for model_size in WhisperModelSize:
+            # Hungarian checkpoints are local-only and are listed only when
+            # provisioned for Whisper.cpp, never as generic downloads.
+            if model_size in HUNGARIAN_WHISPER_CPP_MODEL_SIZES:
+                if self.model.model_type != ModelType.WHISPER_CPP:
+                    continue
+                model_path = TranscriptionModel(
+                    model_type=ModelType.WHISPER_CPP,
+                    whisper_model_size=model_size,
+                ).get_local_model_path()
+                if model_path is None:
+                    continue
+
             # Skip custom size for OpenAI Whisper
             if (self.model.model_type == ModelType.WHISPER and
                     model_size == WhisperModelSize.CUSTOM):
@@ -223,13 +239,18 @@ class ModelsPreferencesWidget(QWidget):
             model_path = model.get_local_model_path()
             parent = downloaded_item if model_path is not None else available_item
             item = QTreeWidgetItem(parent)
-            item.setText(0, model_size.value.title())
+            item.setText(0, model_size.display_name)
             item.setData(0, Qt.ItemDataRole.UserRole, model_size)
             if self.model.whisper_model_size == model_size:
                 item.setSelected(True)
             parent.addChild(item)
 
     def on_model_type_changed(self, model_type: ModelType):
+        if (
+            model_type != ModelType.WHISPER_CPP
+            and self.model.whisper_model_size in HUNGARIAN_WHISPER_CPP_MODEL_SIZES
+        ):
+            self.model.whisper_model_size = WhisperModelSize.TINY
         self.model.model_type = model_type
         self.reset()
 

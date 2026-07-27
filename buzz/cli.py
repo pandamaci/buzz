@@ -150,8 +150,14 @@ def _resolve_model(
         whisper_model_size=model_size,
         hugging_face_model_id=hugging_face_model_id,
     )
+    if model_size.value.startswith("hungarian-") and model_type != CommandLineModelType.WHISPER_CPP:
+        raise CommandLineError("Hungarian model sizes are available only with --model-type whispercpp")
     model_path = model.get_local_model_path()
     if model_path is None:
+        if model_size.value.startswith("hungarian-"):
+            raise CommandLineError(
+                "Hungarian Whisper.cpp model is not installed; run start.sh to provision it"
+            )
         ModelDownloader(model=model).run()
         model_path = model.get_local_model_path()
     if model_path is None:

@@ -128,7 +128,14 @@ class EnhancedLanguageDetectionPlugin(BuzzPlugin):
         best_size = -1
         # CUSTOM and LUMII are special-purpose models, not general size variants,
         # so they are excluded from language detection.
-        skip_sizes = {WhisperModelSize.CUSTOM, WhisperModelSize.LUMII}
+        skip_sizes = {
+            WhisperModelSize.CUSTOM,
+            WhisperModelSize.LUMII,
+            WhisperModelSize.HUNGARIAN_BASE,
+            WhisperModelSize.HUNGARIAN_TINY_V2,
+            WhisperModelSize.HUNGARIAN_SMALL,
+            WhisperModelSize.HUNGARIAN_LARGEV3TURBO,
+        }
         for model_size in WhisperModelSize:
             if model_size in skip_sizes:
                 continue

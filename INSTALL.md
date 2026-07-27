@@ -42,6 +42,34 @@ The launcher sets `BUZZ_EXECUTION_MODE`, which overrides the saved **Disable GPU
 
 Models are downloaded from **Help → Preferences → Models**. For CPU, start with Whisper.cpp `tiny` or `base`; larger models need more memory and are slower. Local transcription needs no API key.
 
+### First-run Hungarian model provisioning
+
+The launcher provisions the pinned Hungarian Whisper.cpp models before opening Buzz. If Hugging Face asks for authentication, create a Hugging Face [read access token](https://huggingface.co/settings/tokens) and configure it before the first launch:
+
+```bash
+./start.sh --configure-hf-token
+./start.sh
+```
+
+The first command prompts without echoing the token, validates it with the locked CPU environment's official `huggingface_hub` login API, saves the login in `~/.cache/Buzz`, and exits. It does not write the token to this checkout or to Git. The provisioner automatically uses that saved login; no model needs to be downloaded first. To avoid saving a login, provide the token only in the process environment instead (do not put it on a command line):
+
+```bash
+read -rsp 'Hugging Face read token: ' HF_TOKEN; printf '\n'
+export HF_TOKEN
+./start.sh
+unset HF_TOKEN
+```
+
+Remove the saved login with:
+
+```bash
+HF_HOME="$HOME/.cache/Buzz" UV_PROJECT_ENVIRONMENT=.venv-cpu \
+  uv run --locked --exact --no-default-groups --extra cpu python -c \
+  'from huggingface_hub import logout; logout()'
+```
+
+Revoke the token itself from the Hugging Face [token settings](https://huggingface.co/settings/tokens). The bundled Hungarian Base fine-tune has an upstream **non-commercial restriction**; do not treat it as cleared for commercial use.
+
 ## Troubleshooting
 
 - `uv: command not found`: restart the shell after installing uv.

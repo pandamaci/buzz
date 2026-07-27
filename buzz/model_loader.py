@@ -1,5 +1,6 @@
 import enum
 import hashlib
+import json
 import logging
 import multiprocessing
 import os
@@ -124,6 +125,9 @@ os.makedirs(model_root_dir, exist_ok=True)
 logging.debug("Model root directory: %s", model_root_dir)
 
 DOWNLOAD_COMPLETE_MARKER = ".buzz_complete"
+HUNGARIAN_MANIFEST_NAME = ".hungarian-whispercpp-manifest.json"
+HUNGARIAN_GGML_MAGIC = 0x67676D6C
+HUNGARIAN_MIN_MODEL_SIZE = 1024 * 1024
 
 class WhisperModelSize(str, enum.Enum):
     TINY = "tiny"
@@ -138,6 +142,10 @@ class WhisperModelSize(str, enum.Enum):
     LARGEV2 = "large-v2"
     LARGEV3 = "large-v3"
     LARGEV3TURBO = "large-v3-turbo"
+    HUNGARIAN_BASE = "hungarian-base"
+    HUNGARIAN_TINY_V2 = "hungarian-tiny-v2"
+    HUNGARIAN_SMALL = "hungarian-small"
+    HUNGARIAN_LARGEV3TURBO = "hungarian-large-v3-turbo"
     CUSTOM = "custom"
     LUMII = "lumii"
 
@@ -152,7 +160,74 @@ class WhisperModelSize(str, enum.Enum):
         return self.value
 
     def __str__(self):
-        return self.value.capitalize()
+        return {
+            WhisperModelSize.HUNGARIAN_BASE: "Hungarian Base",
+            WhisperModelSize.HUNGARIAN_TINY_V2: "Hungarian Tiny V2",
+            WhisperModelSize.HUNGARIAN_SMALL: "Hungarian Small",
+            WhisperModelSize.HUNGARIAN_LARGEV3TURBO: "Hungarian Large-v3-turbo",
+        }.get(self, self.value.capitalize())
+
+    @property
+    def display_name(self) -> str:
+        return str(self)
+
+
+HUNGARIAN_WHISPER_CPP_MODEL_PATHS = {
+    WhisperModelSize.HUNGARIAN_BASE: "ggml-hungarian-base.bin",
+    WhisperModelSize.HUNGARIAN_TINY_V2: "ggml-hungarian-tiny-v2.bin",
+    WhisperModelSize.HUNGARIAN_SMALL: "ggml-hungarian-small.bin",
+    WhisperModelSize.HUNGARIAN_LARGEV3TURBO: "ggml-hungarian-large-v3-turbo.bin",
+}
+HUNGARIAN_WHISPER_CPP_PROVENANCE = {
+    WhisperModelSize.HUNGARIAN_BASE: (
+        "sarpba/whisper-base-hungarian_v1",
+        "2d5825d0d97c65a5ac92f69eb3ea23914ba2ed5c",
+    ),
+    WhisperModelSize.HUNGARIAN_TINY_V2: (
+        "sarpba/whisper-hu-tiny-finetuned-V2",
+        "7aff1823ddceb0e4412ae286b6391eebd74a2651",
+    ),
+    WhisperModelSize.HUNGARIAN_SMALL: (
+        "sarpba/whisper-hu-small-finetuned",
+        "695bec9fd9ac32998ade9cfe59e7e486695f7339",
+    ),
+    WhisperModelSize.HUNGARIAN_LARGEV3TURBO: (
+        "sarpba/whisper-hu-large-v3-turbo-finetuned",
+        "9d63092bd80b66729b86f2c6d044a964afb39f7f",
+    ),
+}
+HUNGARIAN_WHISPER_CPP_MODEL_SIZES = frozenset(HUNGARIAN_WHISPER_CPP_MODEL_PATHS)
+
+
+def _hungarian_model_is_valid(size: WhisperModelSize, file_path: str) -> bool:
+    """Validate a provisioner-owned model without importing the provisioner."""
+    try:
+        if os.path.islink(file_path) or not os.path.isfile(file_path):
+            return False
+        if os.path.getsize(file_path) < HUNGARIAN_MIN_MODEL_SIZE:
+            return False
+        with open(file_path, "rb") as model_file:
+            if int.from_bytes(model_file.read(4), "little") != HUNGARIAN_GGML_MAGIC:
+                return False
+        with open(os.path.join(model_root_dir, HUNGARIAN_MANIFEST_NAME), encoding="utf-8") as manifest_file:
+            manifest = json.load(manifest_file)
+        entry = manifest.get("models", {}).get(HUNGARIAN_WHISPER_CPP_MODEL_PATHS[size])
+        if not isinstance(entry, dict):
+            return False
+        if entry.get("target") != HUNGARIAN_WHISPER_CPP_MODEL_PATHS[size]:
+            return False
+        repo, revision = HUNGARIAN_WHISPER_CPP_PROVENANCE[size]
+        if entry.get("repo") != repo or entry.get("revision") != revision:
+            return False
+        if entry.get("filesize") != os.path.getsize(file_path):
+            return False
+        digest = hashlib.sha256()
+        with open(file_path, "rb") as model_file:
+            for chunk in iter(lambda: model_file.read(1024 * 1024), b""):
+                digest.update(chunk)
+        return entry.get("sha256") == digest.hexdigest()
+    except (OSError, ValueError, TypeError, json.JSONDecodeError):
+        return False
 
 # Approximate expected file sizes for Whisper models (based on actual .pt file sizes)
 WHISPER_MODEL_SIZES = {
@@ -535,10 +610,17 @@ class TranscriptionModel:
         os.remove(model_path)
 
     def get_local_model_path(self) -> Optional[str]:
+        if (
+            self.whisper_model_size in HUNGARIAN_WHISPER_CPP_MODEL_SIZES
+            and self.model_type != ModelType.WHISPER_CPP
+        ):
+            return None
         if self.model_type == ModelType.WHISPER_CPP:
             file_path = get_whisper_cpp_file_path(size=self.whisper_model_size)
             if not file_path or not os.path.exists(file_path) or not os.path.isfile(file_path):
                 return None
+            if self.whisper_model_size in HUNGARIAN_WHISPER_CPP_MODEL_SIZES:
+                return file_path if _hungarian_model_is_valid(self.whisper_model_size, file_path) else None
             if not _snapshot_is_complete(os.path.dirname(file_path)):
                 return None
             return file_path
@@ -603,6 +685,9 @@ def get_whisper_cpp_file_path(size: WhisperModelSize) -> str:
     if size == WhisperModelSize.CUSTOM:
         return os.path.join(model_root_dir, f"ggml-model-whisper-custom.bin")
 
+    if size in HUNGARIAN_WHISPER_CPP_MODEL_PATHS:
+        return os.path.join(model_root_dir, HUNGARIAN_WHISPER_CPP_MODEL_PATHS[size])
+
     repo_id = WHISPER_CPP_REPO_ID
 
     if size == WhisperModelSize.LUMII:
@@ -629,6 +714,9 @@ def get_whisper_file_path(size: WhisperModelSize) -> str:
 
     if size == WhisperModelSize.CUSTOM:
         return os.path.join(root_dir, "custom")
+
+    if size in HUNGARIAN_WHISPER_CPP_MODEL_SIZES:
+        return ""
 
     url = whisper._MODELS[size.value]
     return os.path.join(root_dir, os.path.basename(url))
@@ -775,6 +863,12 @@ class ModelDownloader(QRunnable):
         self._download_process = proc
 
     def _download_whisper_cpp(self) -> None:
+        if self.model.whisper_model_size in HUNGARIAN_WHISPER_CPP_MODEL_SIZES:
+            self.signals.error.emit(
+                "Hungarian Whisper.cpp models are provisioned at startup; "
+                "run start.sh instead of downloading this model here."
+            )
+            return
         if self.custom_model_url:
             url = self.custom_model_url
             file_path = get_whisper_cpp_file_path(
@@ -890,6 +984,13 @@ class ModelDownloader(QRunnable):
     def run(self) -> None:
         logging.debug("Downloading model: %s, %s", self.model,
                       self.model.hugging_face_model_id)
+
+        if (self.model.whisper_model_size in HUNGARIAN_WHISPER_CPP_MODEL_SIZES
+                and self.model.model_type != ModelType.WHISPER_CPP):
+            self.signals.error.emit(
+                "Hungarian model sizes are available only for Whisper.cpp."
+            )
+            return
 
         if self.model.model_type == ModelType.WHISPER_CPP:
             self._download_whisper_cpp()

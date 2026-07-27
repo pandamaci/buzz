@@ -10,7 +10,10 @@ from PyQt6.QtWidgets import QGroupBox, QWidget, QFormLayout, QComboBox, QLabel, 
 from buzz.locale import _
 from buzz.settings.settings import Settings
 from buzz.widgets.icon import INFO_ICON_PATH
-from buzz.model_loader import ModelType, WhisperModelSize, get_whisper_cpp_file_path, is_mms_model
+from buzz.model_loader import (
+    ModelType, WhisperModelSize, HUNGARIAN_WHISPER_CPP_MODEL_SIZES,
+    get_whisper_cpp_file_path, is_mms_model,
+)
 from buzz.transcriber.transcriber import TranscriptionOptions, Task
 from buzz.widgets.model_type_combo_box import ModelTypeComboBox
 from buzz.widgets.openai_api_key_line_edit import OpenAIAPIKeyLineEdit
@@ -60,7 +63,9 @@ class TranscriptionOptionsGroupBox(QGroupBox):
 
         self.whisper_model_size_combo_box = QComboBox(self)
         self.whisper_model_size_combo_box.addItems(
-            [size.value.title() for size in WhisperModelSize if size not in {WhisperModelSize.CUSTOM, WhisperModelSize.LUMII}]
+            [size.display_name for size in WhisperModelSize
+             if size not in {WhisperModelSize.CUSTOM, WhisperModelSize.LUMII}
+             and size not in HUNGARIAN_WHISPER_CPP_MODEL_SIZES]
         )
         self.whisper_model_size_combo_box.currentTextChanged.connect(
             self.on_whisper_model_size_changed
@@ -209,6 +214,19 @@ class TranscriptionOptionsGroupBox(QGroupBox):
                 WhisperModelSize.CUSTOM.value.title()
             )
 
+        # Hungarian models are local-only and must not appear for other backends.
+        for hungarian_size in HUNGARIAN_WHISPER_CPP_MODEL_SIZES:
+            label = hungarian_size.display_name
+            index = self.whisper_model_size_combo_box.findText(label)
+            available = (
+                model_type == ModelType.WHISPER_CPP
+                and os.path.isfile(get_whisper_cpp_file_path(hungarian_size))
+            )
+            if available and index == -1:
+                self.whisper_model_size_combo_box.addItem(label)
+            elif not available and index != -1:
+                self.whisper_model_size_combo_box.removeItem(index)
+
         # Leave LUMII model only for Latvian whisper_cpp
         lumii_model_index = (self.whisper_model_size_combo_box
                               .findText(WhisperModelSize.LUMII.value.title()))
@@ -221,9 +239,11 @@ class TranscriptionOptionsGroupBox(QGroupBox):
                 WhisperModelSize.LUMII.value.title()
             )
 
-        self.whisper_model_size_combo_box.setCurrentText(
-            self.transcription_options.model.whisper_model_size.value.title()
-        )
+        current_label = self.transcription_options.model.whisper_model_size.display_name
+        if self.whisper_model_size_combo_box.findText(current_label) == -1:
+            self.transcription_options.model.whisper_model_size = WhisperModelSize.LARGEV3TURBO
+            current_label = WhisperModelSize.LARGEV3TURBO.display_name
+        self.whisper_model_size_combo_box.setCurrentText(current_label)
 
         self.form_layout.setRowVisible(
             self.whisper_model_size_combo_box,
@@ -260,12 +280,17 @@ class TranscriptionOptionsGroupBox(QGroupBox):
         if (self.transcription_options.model.whisper_model_size == WhisperModelSize.LUMII
                 and model_type != ModelType.WHISPER_CPP):
             self.transcription_options.model.whisper_model_size = WhisperModelSize.LARGEV3TURBO
+        if (self.transcription_options.model.whisper_model_size in HUNGARIAN_WHISPER_CPP_MODEL_SIZES
+                and model_type != ModelType.WHISPER_CPP):
+            self.transcription_options.model.whisper_model_size = WhisperModelSize.LARGEV3TURBO
 
         self.reset_visible_rows()
         self.transcription_options_changed.emit(self.transcription_options)
 
     def on_whisper_model_size_changed(self, text: str):
-        model_size = WhisperModelSize(text.lower())
+        model_size = next((size for size in WhisperModelSize if size.display_name == text), None)
+        if model_size is None:
+            model_size = WhisperModelSize(text.lower())
         self.transcription_options.model.whisper_model_size = model_size
 
         self.reset_visible_rows()
