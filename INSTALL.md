@@ -7,12 +7,15 @@ These instructions target Ubuntu/Linux. Buzz requires Python 3.12 (`>=3.12,<3.13
 ```bash
 sudo apt-get update
 sudo apt-get install --no-install-recommends \
-  build-essential cmake pkg-config curl python3.12 python3.12-dev python3.12-venv \
+  build-essential cmake pkg-config curl pipx python3.12 python3.12-dev python3.12-venv \
   libyaml-dev libtbb-dev libxkbcommon-x11-0 libxcb-icccm4 libxcb-image0 \
   libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-xinerama0 \
-  libxcb-shape0 libxcb-cursor0 libportaudio2 gettext libpulse0 ffmpeg
-curl -LsSf https://astral.sh/uv/install.sh | sh
+  libxcb-shape0 libxcb-cursor0 libportaudio2 libpulse0 libasound2 gettext ffmpeg
+pipx install uv
+pipx ensurepath
 ```
+
+Restart your shell after installing uv, or ensure `~/.local/bin` is on your `PATH`.
 
 Initialize submodules, then install the locked CPU environment:
 
@@ -72,7 +75,10 @@ Revoke the token itself from the Hugging Face [token settings](https://huggingfa
 
 ## Troubleshooting
 
-- `uv: command not found`: restart the shell after installing uv.
-- Qt/display or audio errors: run from a graphical desktop and install the prerequisite packages above.
+- `uv: command not found`: run `pipx install uv`, then `pipx ensurepath`, restart your shell, and verify with `command -v uv`.
+- PortAudio errors: run `sudo apt-get install libportaudio2 libpulse0 libasound2`.
+- Qt/XCB or display errors, including in XFCE or XRDP sessions: Buzz uses Qt's XCB platform plugin for these desktops/sessions. Qt's platform-plugin warning can be generic; if the launcher reports unresolved library names, install the full Ubuntu Qt/XCB runtime set:
+  `sudo apt-get install --no-install-recommends libxkbcommon-x11-0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-xinerama0 libxcb-shape0 libxcb-cursor0`.
+- Other Qt/display or audio errors: run from a graphical desktop and install the prerequisite packages above.
 - CUDA mode errors: verify `nvidia-smi`, the NVIDIA driver, and that the launcher is running on Linux x86_64.
 - Whisper.cpp build errors: confirm submodules, CMake, and a C/C++ toolchain are installed.

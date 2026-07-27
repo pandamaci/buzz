@@ -113,16 +113,10 @@ Defaults to [user_cache_dir](https://pypi.org/project/platformdirs/).
 
 **BUZZ_MERGE_REGROUP_RULE** - Custom regroup merge rule to use when combining transcripts with word-level timings. More information on available options [in stable-ts repo](https://github.com/jianfch/stable-ts?tab=readme-ov-file#regrouping-methods). Available since `1.3.0`
 
-**BUZZ_DISABLE_TELEMETRY** - Buzz collects basic OS name and architecture usage statistics to better focus development efforts. This variable lets disable collection of these statistics. Example usage `BUZZ_DISABLE_TELEMETRY=true`. Available since `1.3.0`
-
 **BUZZ_DISABLE_UPDATE_CHECK** - Disable checks for updates. Example usage `BUZZ_DISABLE_UPDATE_CHECK=true`. Available since `1.4.5`
 
 **BUZZ_UPLOAD_URL** - Live recording transcripts and translations can be uploaded to a server for display on the web. Set this variable to the desired upload url. You can use [buzz-transcription-server](https://github.com/raivisdejus/buzz-transcription-server) as a server. Buzz will upload the following `json` via `POST` requests - `{"kind": "transcript", "text": "Sample transcript"}` or `{"kind": "translation", "text": "Sample translation"}`. Example usage `BUZZ_UPLOAD_URL=http://localhost:5000/upload`. Available since `1.3.0`
 
 **HF_ENDPOINT** - To speed up downloads in China set `HF_ENDPOINT=https://hf-mirror.com` 
 
-Example of data collected by telemetry:
-```
-Buzz: 1.3.0, locale: ('lv_LV', 'UTF-8'), system: Linux, release: 6.14.0-27-generic, machine: x86_64, version: #27~24.04.1-Ubuntu SMP PREEMPT_DYNAMIC Tue Jul 22 17:38:49 UTC 2,
-```
 **BUZZ_PARAGRAPH_SPLIT_TIME** - Time in milliseconds of silence to split paragraphs in transcript and add two newlines when exporting the transcripts as text. Default is `2000` or 2 seconds. Available since `1.3.0`

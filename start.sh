@@ -8,6 +8,107 @@ usage() {
   printf '  --configure-hf-token  Validate and save a Hugging Face read token, then exit.\n'
 }
 
+prepare_checkout() {
+  local git_state
+
+  if command -v git >/dev/null 2>&1; then
+    if git_state=$(git rev-parse --is-inside-work-tree 2>/dev/null) && [[ "$git_state" == true ]]; then
+      if ! git submodule update --init --recursive; then
+        printf 'Unable to initialize Buzz git submodules. Check Git access and network connectivity, then run:\n' >&2
+        printf '  git submodule update --init --recursive\n' >&2
+        exit 1
+      fi
+    elif [[ -e .git ]]; then
+      printf 'Unable to inspect the Buzz git worktree. Check that Git is installed and this checkout is valid.\n' >&2
+      exit 1
+    fi
+  elif [[ -e .git ]]; then
+    printf 'Buzz is a Git worktree, but Git is not installed. Install Git and rerun this launcher.\n' >&2
+    exit 1
+  fi
+}
+
+preflight_native_tools() {
+  local tool
+  local missing=()
+  local required_tools=(cc c++ make cmake)
+
+  for tool in "${required_tools[@]}"; do
+    if ! command -v "$tool" >/dev/null 2>&1; then
+      missing+=("$tool")
+    fi
+  done
+
+  if (( ${#missing[@]} > 0 )); then
+    printf 'Missing native build tool(s): %s\n' "${missing[*]}" >&2
+    printf 'Install a C/C++ toolchain, make, and CMake with your OS package manager, then rerun ./start.sh.\n' >&2
+    printf 'Examples: build-essential + cmake (Debian/Ubuntu), Development Tools + cmake (Fedora/RHEL), or Xcode Command Line Tools + cmake (macOS).\n' >&2
+    exit 1
+  fi
+}
+
+preflight_runtime() {
+  local ldconfig_output
+  local qt_plugin
+  local ldd_output
+  local line
+  local library
+  local missing_libraries=()
+
+  if ! command -v uv >/dev/null 2>&1; then
+    printf 'uv is required but was not found on PATH.\n' >&2
+    printf 'Install it with pipx, ensure its bin directory is on PATH, then restart your shell:\n' >&2
+    printf '  pipx install uv\n' >&2
+    printf '  pipx ensurepath\n' >&2
+    printf 'Verify the installation with: command -v uv\n' >&2
+    exit 1
+  fi
+
+  if [[ "$(uname -s)" == Linux ]]; then
+    if command -v ldconfig >/dev/null 2>&1; then
+      ldconfig_output="$(ldconfig -p 2>/dev/null || true)"
+      if [[ "$ldconfig_output" != *libportaudio.so.2* ]]; then
+        printf 'PortAudio runtime library libportaudio.so.2 was not found.\n' >&2
+        printf 'Install it with:\n' >&2
+        printf '  sudo apt-get install libportaudio2 libpulse0 libasound2\n' >&2
+        exit 1
+      fi
+    fi
+
+    if ! command -v ldd >/dev/null 2>&1; then
+      printf 'ldd is required to check the Qt XCB platform plugin dependencies.\n' >&2
+      printf 'Install the package that provides ldd, then rerun ./start.sh.\n' >&2
+      exit 1
+    fi
+
+    qt_plugin=".venv-${1}/lib/python3.12/site-packages/PyQt6/Qt6/plugins/platforms/libqxcb.so"
+    if [[ ! -f "$qt_plugin" ]]; then
+      printf 'The selected %s environment does not contain PyQt6 Qt platform plugin libqxcb.so.\n' "$1" >&2
+      printf 'Install the selected locked environment before launching Buzz, then rerun ./start.sh.\n' >&2
+      printf '  UV_PROJECT_ENVIRONMENT=.venv-%s uv sync --locked --exact --no-default-groups --extra %s\n' "$1" "$1" >&2
+      exit 1
+    fi
+
+    ldd_output="$(ldd "$qt_plugin" 2>&1 || true)"
+    while IFS= read -r line; do
+      if [[ "$line" == *'not found'* ]]; then
+        library="${line%% =>*}"
+        library="${library#"${library%%[![:space:]]*}"}"
+        library="${library%"${library##*[![:space:]]}"}"
+        missing_libraries+=("$library")
+      fi
+    done <<< "$ldd_output"
+
+    if (( ${#missing_libraries[@]} > 0 )); then
+      printf 'Qt XCB platform plugin libqxcb.so has unresolved dependencies:\n' >&2
+      printf '  %s\n' "${missing_libraries[@]}" >&2
+      printf 'Install the Ubuntu Qt/XCB runtime packages with:\n' >&2
+      printf '  sudo apt-get install --no-install-recommends libxkbcommon-x11-0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-xinerama0 libxcb-shape0 libxcb-cursor0\n' >&2
+      exit 1
+    fi
+  fi
+}
+
 if (( $# > 1 )); then
   printf 'Only one launcher option may be supplied.\n' >&2
   usage >&2
@@ -30,6 +131,10 @@ case "${1:-}" in
     exit 2
     ;;
 esac
+
+prepare_checkout
+preflight_native_tools
+preflight_runtime "$mode"
 
 if [[ "${1:-}" == --configure-hf-token ]]; then
   export HF_HOME="${HOME}/.cache/Buzz"

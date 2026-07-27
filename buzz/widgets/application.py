@@ -3,10 +3,7 @@ import os
 import sys
 import locale
 import platform
-import threading
 import darkdetect
-
-from posthog import Posthog
 
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QFont
@@ -76,21 +73,6 @@ class Application(QApplication):
         )
 
         self.window = MainWindow(transcription_service)
-
-        disable_telemetry = os.getenv("BUZZ_DISABLE_TELEMETRY", None)
-
-        if not disable_telemetry:
-            posthog = Posthog(project_api_key='phc_NqZQUw8NcxfSXsbtk5eCFylmCQpp4FuNnd6ocPAzg2f',
-                              host='https://us.i.posthog.com')
-            posthog.capture(distinct_id=self.settings.get_user_identifier(), event="app_launched", properties={
-                "app": VERSION,
-                "locale": locale.getlocale(),
-                "system": platform.system(),
-                "release": platform.release(),
-                "machine": platform.machine(),
-                "version": platform.version(),
-            })
-            threading.Thread(target=posthog.shutdown, daemon=True).start()
 
         logging.debug(f"Launching Buzz: {VERSION}, " 
                       f"locale: {locale.getlocale()}, "

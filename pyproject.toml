@@ -63,7 +63,6 @@ dependencies = [
     "treetable>=0.2.5,<0.3",
     "soundfile>=0.13.1,<0.14",
     "urllib3>=2.6.0,<3",
-    "posthog>=3.23.0,<4",
     # This version works, newer have issues on Windows
     "onnxruntime==1.18.1",
     "onnx>=1.20.0",  # Required for nemo-toolkit, ensures ml-dtypes is installed
