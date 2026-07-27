@@ -42,3 +42,6 @@ benchmarks.json
 /nemo_msdd_configs
 
 token-optimizer/
+
+# Local orchestration notes
+.slim/deepwork/

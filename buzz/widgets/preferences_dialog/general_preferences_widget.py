@@ -1,5 +1,4 @@
 import re
-import logging
 import requests
 from typing import Optional
 from platformdirs import user_documents_dir
@@ -28,6 +27,7 @@ from buzz.widgets.openai_api_key_line_edit import OpenAIAPIKeyLineEdit
 from buzz.locale import _
 from buzz.widgets.icon import INFO_ICON_PATH
 from buzz.settings.recording_transcriber_mode import RecordingTranscriberMode
+from buzz.widgets.preferences_dialog.drive_oauth_widget import DriveOAuthWidget
 
 BASE64_PATTERN = re.compile(r'^[A-Za-z0-9+/=_-]*$')
 
@@ -222,7 +222,14 @@ class GeneralPreferencesWidget(QWidget):
         self.force_cpu_checkbox.stateChanged.connect(self.on_force_cpu_changed)
         layout.addRow(_("Disable GPU"), self.force_cpu_checkbox)
 
+        self.drive_oauth_widget = DriveOAuthWidget(self)
+        layout.addRow(self.drive_oauth_widget)
+
         self.setLayout(layout)
+
+    def cancel_operations(self):
+        if hasattr(self, 'drive_oauth_widget'):
+            self.drive_oauth_widget.cancel()
 
     def on_default_export_file_name_changed(self, text: str):
         self.settings.set_value(Settings.Key.DEFAULT_EXPORT_FILE_NAME, text)

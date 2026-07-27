@@ -1,8 +1,9 @@
-import json
 import os
 import sys
 import tempfile
-from unittest.mock import Mock, patch, MagicMock
+import threading
+import time
+from unittest.mock import patch
 
 import pytest
 
@@ -21,6 +22,7 @@ from buzz.store.keyring_store import (
     set_password,
     delete_password,
 )
+import buzz.store.keyring_store as keyring_store
 from buzz.settings.settings import APP_NAME
 
 
@@ -327,6 +329,90 @@ class TestGetPassword:
         result = get_password(Key.OPENAI_API_KEY)
 
         assert result == ""
+
+    @patch("buzz.store.keyring_store._KEYRING_READ_TIMEOUT_SECONDS", 0.01)
+    @patch("buzz.store.keyring_store._is_linux", return_value=False)
+    @patch("buzz.store.keyring_store.keyring")
+    def test_returns_empty_string_when_keyring_read_times_out(
+        self, mock_keyring, mock_is_linux, caplog
+    ):
+        started = threading.Event()
+        release = threading.Event()
+
+        def stalled_read(*args, **kwargs):
+            started.set()
+            release.wait()
+            return "keyring_password"
+
+        mock_keyring.get_password.side_effect = stalled_read
+
+        try:
+            started_at = time.monotonic()
+            result = get_password(Key.OPENAI_API_KEY)
+            elapsed = time.monotonic() - started_at
+
+            assert started.wait(1)
+            assert result == ""
+            assert elapsed < 0.5
+            assert "timed out" in caplog.text
+        finally:
+            release.set()
+            reader = keyring_store._KEYRING_READ_THREAD
+            if reader is not None:
+                reader.join(1)
+            assert reader is None or not reader.is_alive()
+
+    @patch("buzz.store.keyring_store._KEYRING_READ_TIMEOUT_SECONDS", 0.01)
+    @patch("buzz.store.keyring_store._is_linux", return_value=False)
+    @patch("buzz.store.keyring_store.keyring")
+    def test_repeated_stalled_reads_use_one_backend_worker(
+        self, mock_keyring, mock_is_linux, caplog
+    ):
+        started = threading.Event()
+        release = threading.Event()
+        worker_threads = []
+
+        def stalled_read(*args, **kwargs):
+            worker_threads.append(threading.current_thread())
+            started.set()
+            release.wait()
+            return "keyring_password"
+
+        mock_keyring.get_password.side_effect = stalled_read
+
+        try:
+            started_at = time.monotonic()
+            assert get_password(Key.OPENAI_API_KEY) == ""
+            first_elapsed = time.monotonic() - started_at
+            assert started.wait(1)
+
+            started_at = time.monotonic()
+            assert get_password(Key.OPENAI_API_KEY) == ""
+            second_elapsed = time.monotonic() - started_at
+
+            assert first_elapsed < 0.5
+            assert second_elapsed < 0.1
+            assert mock_keyring.get_password.call_count == 1
+            assert len(worker_threads) == 1
+            assert "already in progress" in caplog.text
+        finally:
+            release.set()
+            reader = keyring_store._KEYRING_READ_THREAD
+            if reader is not None:
+                reader.join(1)
+            assert reader is None or not reader.is_alive()
+
+    @patch("buzz.store.keyring_store._is_linux", return_value=False)
+    @patch("buzz.store.keyring_store.keyring")
+    def test_keyring_failure_warning_does_not_include_secret_values(
+        self, mock_keyring, mock_is_linux, caplog
+    ):
+        mock_keyring.get_password.side_effect = RuntimeError("secret-value")
+
+        assert get_password(Key.OPENAI_API_KEY) == ""
+
+        assert "secret-value" not in caplog.text
+        assert "RuntimeError" in caplog.text
 
 
 class TestSetPassword:

@@ -11,13 +11,11 @@ from buzz import cuda_setup  # noqa: F401
 
 import torch
 import platform
-import subprocess
 from platformdirs import user_cache_dir
 from multiprocessing.connection import Connection
 from threading import Thread
 from typing import Optional, List
 
-import tqdm
 from PyQt6.QtCore import QObject
 
 from buzz import whisper_audio
@@ -77,7 +75,8 @@ class WhisperFileTranscriber(FileTranscriber):
     def transcribe(self) -> List[Segment]:
         time_started = datetime.datetime.now()
         logging.debug(
-            "Starting whisper file transcription, task = %s", self.transcription_task
+            "Starting whisper file transcription for source=%s",
+            self.transcription_task.source,
         )
 
         if torch.cuda.is_available():
@@ -400,6 +399,7 @@ class WhisperFileTranscriber(FileTranscriber):
         ]
 
     def stop(self):
+        super().stop()
         self.stopped = True
 
         if self.started_process:

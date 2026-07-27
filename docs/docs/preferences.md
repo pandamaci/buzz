@@ -52,6 +52,15 @@ Last sentence will be at the top.
 This mode will also try to correct errors at the end of previously transcribed sentences. This mode requires more
 processing power and more powerful hardware to work.
 
+### Advanced Google Drive OAuth
+
+For private Google Drive URLs, use Buzz's advanced BYO (Bring Your Own) Desktop OAuth client configuration.
+
+- **Setup Requirements**: You must configure your own Google Cloud project and download an "Installed/Desktop Application" OAuth Client JSON file.
+- **Scope**: Authorization requests the broad `drive.readonly` scope in your browser. 
+- **Security on Linux**: A secure, approved OS keyring (like Secret Service or KWallet) is strictly required to store the authorization safely.
+- **Privacy**: The local SQLite history database may retain the full Drive URL (including any sensitive capability-like `resourcekey`) so that retries function as expected. If you wish to purge this, you must delete your job history. Disconnecting via the Preferences dialog deletes the local saved authorization tokens but does not clear history.
+
 ## Model Preferences
 
 This section lets you download new models for transcription and delete unused ones.
@@ -104,8 +113,6 @@ combined to produce the final answer.
 Defaults to [user_cache_dir](https://pypi.org/project/platformdirs/).
 
 **BUZZ_FAVORITE_LANGUAGES** - Coma separated list of supported language codes to show on top of language list.
-
-**BUZZ_DOWNLOAD_COOKIEFILE** - Location of a [cookiefile](https://github.com/yt-dlp/yt-dlp/wiki/FAQ#how-do-i-pass-cookies-to-yt-dlp) to use for downloading private videos or as workaround for anti-bot protection.
 
 **BUZZ_FORCE_CPU** - Will force Buzz to use CPU and not GPU, useful for setups with older GPU if that is slower than GPU or GPU has issues. Example usage `BUZZ_FORCE_CPU=true`. Available since `1.2.1`
 

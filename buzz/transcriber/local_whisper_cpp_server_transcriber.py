@@ -47,7 +47,7 @@ class LocalWhisperCppServerTranscriber(OpenAIWhisperAPIFileTranscriber):
         time.sleep(10)
 
         if self.process is not None and self.process.poll() is None:
-            logging.debug(f"Whisper server started successfully.")
+            logging.debug("Whisper server started successfully.")
             logging.debug(f"Model: {task.model_path}")
         else:
             stderr_output = ""
@@ -75,6 +75,7 @@ class LocalWhisperCppServerTranscriber(OpenAIWhisperAPIFileTranscriber):
         return super().transcribe()
 
     def stop(self):
+        super().stop()
         if self.process and self.process.poll() is None:
             try:
                 self.process.terminate()

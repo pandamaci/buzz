@@ -43,6 +43,8 @@ CUDA requires Linux x86_64, an NVIDIA GPU with a working driver, and a compatibl
 
 The launcher sets `BUZZ_EXECUTION_MODE`, which overrides the saved **Disable GPU** preference: CPU mode forces CPU and hides CUDA, while CUDA mode is not defeated by a previously saved force-CPU setting. Only CUDA-capable Python backends follow the selected mode; Whisper.cpp remains CPU-only. macOS remains supported by the regular project dependencies, but this launcher’s CUDA mode is Linux-only.
 
+DeepFilterNet noise reduction is optional. On interactive Ubuntu/Debian launches, if `cargo` or `rustc` is missing, the launcher offers to install its Rust build prerequisites with `apt`; declining leaves Buzz usable without DeepFilterNet. Non-interactive launches and unsupported operating systems are not prompted.
+
 Models are downloaded from **Help → Preferences → Models**. For CPU, start with Whisper.cpp `tiny` or `base`; larger models need more memory and are slower. Local transcription needs no API key.
 
 ### First-run Hungarian model provisioning
@@ -76,7 +78,9 @@ Revoke the token itself from the Hugging Face [token settings](https://huggingfa
 ## Troubleshooting
 
 - `uv: command not found`: run `pipx install uv`, then `pipx ensurepath`, restart your shell, and verify with `command -v uv`.
+- `ffmpeg not found`: run `sudo apt-get install ffmpeg`, then verify with `command -v ffmpeg`.
 - PortAudio errors: run `sudo apt-get install libportaudio2 libpulse0 libasound2`.
+- `deep_filter_net` / `Cargo ... is not installed` warnings: the DeepFilterNet noise-reduction plugin is optional; Buzz remains usable without it. On interactive Ubuntu/Debian launches, the launcher offers to install its Rust prerequisites. Otherwise, install them with `sudo apt-get install cargo rustc`, restart your shell, then reopen Buzz.
 - Qt/XCB or display errors, including in XFCE or XRDP sessions: Buzz uses Qt's XCB platform plugin for these desktops/sessions. Qt's platform-plugin warning can be generic; if the launcher reports unresolved library names, install the full Ubuntu Qt/XCB runtime set:
   `sudo apt-get install --no-install-recommends libxkbcommon-x11-0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-xinerama0 libxcb-shape0 libxcb-cursor0`.
 - Other Qt/display or audio errors: run from a graphical desktop and install the prerequisite packages above.

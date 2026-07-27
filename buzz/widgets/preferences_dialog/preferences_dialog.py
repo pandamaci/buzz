@@ -30,6 +30,10 @@ class PreferencesDialog(QDialog):
     folder_watch_config_changed = pyqtSignal(FolderWatchPreferences)
     preferences_changed = pyqtSignal(Preferences)
 
+    def done(self, r: int) -> None:
+        self.general_tab_widget.cancel_operations()
+        super().done(r)
+
     def __init__(
         self,
         shortcuts: Shortcuts,
@@ -45,9 +49,9 @@ class PreferencesDialog(QDialog):
         layout = QVBoxLayout(self)
         tab_widget = QTabWidget(self)
 
-        general_tab_widget = GeneralPreferencesWidget(parent=self)
-        general_tab_widget.openai_api_key_changed.connect(self.openai_api_key_changed)
-        tab_widget.addTab(general_tab_widget, _("General"))
+        self.general_tab_widget = GeneralPreferencesWidget(parent=self)
+        self.general_tab_widget.openai_api_key_changed.connect(self.openai_api_key_changed)
+        tab_widget.addTab(self.general_tab_widget, _("General"))
 
         models_tab_widget = ModelsPreferencesWidget(parent=self)
         tab_widget.addTab(models_tab_widget, _("Models"))

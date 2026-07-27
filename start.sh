@@ -64,6 +64,13 @@ preflight_runtime() {
     exit 1
   fi
 
+  if ! command -v ffmpeg >/dev/null 2>&1; then
+    printf 'ffmpeg is required to transcribe imported audio and video files but was not found on PATH.\n' >&2
+    printf 'Install it with:\n' >&2
+    printf '  sudo apt-get install ffmpeg\n' >&2
+    exit 1
+  fi
+
   if [[ "$(uname -s)" == Linux ]]; then
     if command -v ldconfig >/dev/null 2>&1; then
       ldconfig_output="$(ldconfig -p 2>/dev/null || true)"
@@ -107,6 +114,60 @@ preflight_runtime() {
       exit 1
     fi
   fi
+}
+
+offer_deepfilternet_prerequisites() {
+  local os_id
+  local apt_runner
+  local answer
+
+  if command -v cargo >/dev/null 2>&1 && command -v rustc >/dev/null 2>&1; then
+    return
+  fi
+
+  if [[ ! -t 0 || ! -r /dev/tty || ! -r /etc/os-release ]]; then
+    return
+  fi
+
+  os_id=''
+  . /etc/os-release
+  os_id="${ID:-}"
+  case "$os_id" in
+    ubuntu|debian) ;;
+    *) return ;;
+  esac
+
+  if ! command -v apt-get >/dev/null 2>&1; then
+    printf 'DeepFilterNet is optional; apt-get is unavailable, so its Rust build prerequisites were not installed.\n' >&2
+    return
+  fi
+
+  if [[ "$EUID" -eq 0 ]]; then
+    apt_runner=(apt-get)
+  elif command -v sudo >/dev/null 2>&1; then
+    apt_runner=(sudo apt-get)
+  else
+    printf 'DeepFilterNet is optional; sudo is unavailable, so its Rust build prerequisites were not installed.\n' >&2
+    return
+  fi
+
+  printf 'DeepFilterNet noise reduction is optional. Cargo and/or Rust are missing, so its build prerequisites can be installed with apt.\n' >&2
+  printf 'Install cargo and rustc now? [y/N] ' >&2
+  if ! IFS= read -r answer </dev/tty; then
+    printf '\n' >&2
+    return
+  fi
+
+  case "$answer" in
+    [yY]|[yY][eE][sS])
+      if ! "${apt_runner[@]}" install --no-install-recommends cargo rustc; then
+        printf 'Unable to install the optional DeepFilterNet prerequisites; continuing without them.\n' >&2
+      fi
+      ;;
+    *)
+      printf 'Skipping the optional DeepFilterNet prerequisites; Buzz will continue without DeepFilterNet.\n' >&2
+      ;;
+  esac
 }
 
 if (( $# > 1 )); then
@@ -169,6 +230,8 @@ login(token=token, add_to_git_credential=False)
   printf 'Hugging Face login validated and saved in the local Hugging Face cache.\n'
   exit 0
 fi
+
+offer_deepfilternet_prerequisites
 
 if [[ "$mode" == cuda ]]; then
   unset BUZZ_FORCE_CPU

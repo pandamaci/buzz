@@ -85,8 +85,6 @@ set SOME_OTHER_VARIABLE=some_other_value
 
 **BUZZ_FAVORITE_LANGUAGES** - 以逗号分隔的支持语言代码列表，显示在语言列表顶部。
 
-**BUZZ_DOWNLOAD_COOKIEFILE** - 用于下载私有视频或绕过反机器人保护的 [cookiefile](https://github.com/yt-dlp/yt-dlp/wiki/FAQ#how-do-i-pass-cookies-to-yt-dlp) 的位置。
-
 **BUZZ_FORCE_CPU** - 强制 Buzz 使用 CPU 而不是 GPU，适用于旧 GPU 较慢或 GPU 有问题的设置。示例用法：`BUZZ_FORCE_CPU=true`。自 `1.2.1` 版本起可用。
 
 **BUZZ_MERGE_REGROUP_RULE** - 合并带有单词级时间戳的转录时使用的自定义重新分组规则。更多可用选项的信息请参阅 [stable-ts 仓库](https://github.com/jianfch/stable-ts?tab=readme-ov-file#regrouping-methods)。自 `1.3.0` 版本起可用。
